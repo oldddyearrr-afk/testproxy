@@ -1,0 +1,406 @@
+
+<!DOCTYPE HTML>
+<html>
+<head>
+    <title>Stream Proxy</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            background: #f8f9fa;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .header h1 {
+            font-size: 22px;
+            color: #333;
+            margin: 0;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .main-form {
+            background: white;
+            padding: 20px;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        label {
+            display: block;
+            margin: 15px 0 5px 0;
+            font-weight: bold;
+            color: #555;
+        }
+        
+        input, textarea, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        textarea {
+            height: 60px;
+            resize: vertical;
+        }
+        
+        .radio-group {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+        }
+        
+        .radio-group input[type="radio"] {
+            width: auto;
+            margin-right: 8px;
+        }
+        
+        .radio-group label {
+            display: inline;
+            font-weight: normal;
+            margin: 0;
+        }
+        
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 10px 5px 10px 0;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        .btn-logout {
+            background: #dc3545;
+            font-size: 12px;
+            padding: 6px 12px;
+        }
+        
+        .btn-logout:hover {
+            background: #c82333;
+        }
+        
+        .result-box {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+            display: none;
+        }
+        
+        .auth-warning {
+            text-align: center;
+            padding: 50px 20px;
+            background: white;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        #tsUrlSection {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+            display: none;
+        }
+        
+        .checkbox-group {
+            background: #e7f3ff;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+            margin-left: 8px;
+        }
+        
+        .checkbox-group label {
+            display: inline;
+            margin: 0;
+            font-weight: normal;
+        }
+        
+        @media (max-width: 600px) {
+            .container { padding: 10px; }
+            .header { flex-direction: column; align-items: flex-start; }
+            .user-info { margin-top: 15px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="authCheck" class="container" style="display: none;">
+        <div class="auth-warning">
+            <h2>يجب تسجيل الدخول أولاً</h2>
+            <p style="margin: 15px 0;">يرجى تسجيل الدخول للوصول إلى أدوات البث</p>
+            <button onclick="window.location.href='/login'">تسجيل الدخول</button>
+        </div>
+    </div>
+    
+    <div class="container" id="mainContent">
+        <div class="header">
+            <div>
+                <h1>Stream Proxy</h1>
+                <p style="color: #666; margin: 5px 0 0 0;">إنشاء روابط البروكسي للبث المباشر</p>
+            </div>
+            <div class="user-info">
+                <span id="welcomeUser" style="color: #666;"></span>
+                <button onclick="logout()" class="btn-logout">خروج</button>
+            </div>
+        </div>
+        
+        <div class="main-form">
+            <div class="radio-group">
+                <label style="display: block; margin-bottom: 10px; font-weight: bold;">نوع البث:</label>
+                <div>
+                    <input type="radio" id="m3u8Type" name="streamType" value="m3u8" checked>
+                    <label for="m3u8Type">M3U8 Stream</label>
+                </div>
+                <div style="margin-top: 8px;">
+                    <input type="radio" id="tsType" name="streamType" value="ts">
+                    <label for="tsType">Custom TS Stream</label>
+                </div>
+            </div>
+            
+            <div id="tsUrlSection">
+                <label for="tsUrl">رابط TS المخصص:</label>
+                <input type="text" id="tsUrl" placeholder="أدخل رابط .ts هنا...">
+            </div>
+            
+            <label for="headers">Headers (JSON):</label>
+            <textarea id="headers" placeholder='{"referer": "https://example.com"}'>{"referer": "https://s3taku.com"}</textarea>
+            
+            <label for="duration">مدة صلاحية الرابط:</label>
+            <select id="duration">
+                <option value="1">ساعة واحدة</option>
+                <option value="2" selected>ساعتان</option>
+                <option value="3">3 ساعات</option>
+                <option value="6">6 ساعات</option>
+                <option value="12">12 ساعة</option>
+                <option value="24">24 ساعة</option>
+            </select>
+            
+            <div class="radio-group">
+                <div>
+                    <input type="radio" id="permanentUrl" name="urlType" value="permanent" checked>
+                    <label for="permanentUrl">رابط دائم</label>
+                </div>
+                <div style="margin-top: 8px;">
+                    <input type="radio" id="temporaryUrl" name="urlType" value="temporary">
+                    <label for="temporaryUrl">رابط مؤقت</label>
+                </div>
+            </div>
+            
+            <div class="checkbox-group">
+                <input type="checkbox" id="addM3u8Extension" checked>
+                <label for="addM3u8Extension">إنهاء الرابط بـ .m3u8</label>
+                <small style="display: block; color: #666; margin-top: 5px;">موصى به للتوافق مع المشغلات</small>
+            </div>
+            
+            <button onclick="getProxyUrl()">إنشاء الرابط</button>
+            
+            <div id="proxyUrlResult" class="result-box">
+                <strong>تم إنشاء الرابط:</strong><br>
+                <input type="text" id="proxyUrlText" readonly style="margin: 10px 0;">
+                <br>
+                <button onclick="copyProxyUrl()">نسخ</button>
+                <button onclick="clearResult()">مسح</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function checkAuth() {
+            const userLoggedIn = localStorage.getItem('userLoggedIn');
+            const username = localStorage.getItem('username');
+            const loginTime = localStorage.getItem('loginTime');
+            
+            const twentyFourHours = 24 * 60 * 60 * 1000;
+            if (loginTime && (Date.now() - parseInt(loginTime)) > twentyFourHours) {
+                logout();
+                return false;
+            }
+            
+            if (userLoggedIn === 'true' && username) {
+                document.getElementById('mainContent').style.display = 'block';
+                document.getElementById('authCheck').style.display = 'none';
+                document.getElementById('welcomeUser').textContent = `مرحباً، ${username}`;
+                return true;
+            } else {
+                document.getElementById('mainContent').style.display = 'none';
+                document.getElementById('authCheck').style.display = 'block';
+                return false;
+            }
+        }
+        
+        function logout() {
+            localStorage.removeItem('userLoggedIn');
+            localStorage.removeItem('username');
+            localStorage.removeItem('loginTime');
+            window.location.href = '/login';
+        }
+        
+        document.addEventListener('DOMContentLoaded', checkAuth);
+
+        document.querySelectorAll('input[name="streamType"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                const tsSection = document.getElementById('tsUrlSection');
+                if (this.value === 'ts') {
+                    tsSection.style.display = 'block';
+                } else {
+                    tsSection.style.display = 'none';
+                }
+            });
+        });
+
+        async function getProxyUrl() {
+            const streamType = document.querySelector('input[name="streamType"]:checked').value;
+            const urlType = document.querySelector('input[name="urlType"]:checked').value;
+            const addM3u8Extension = document.getElementById('addM3u8Extension').checked;
+            let headers = document.getElementById('headers').value;
+            const duration = parseInt(document.getElementById('duration').value);
+
+            try {
+                headers = JSON.parse(headers);
+            } catch (e) {
+                headers = {};
+                alert("خطأ في تنسيق Headers. يرجى استخدام JSON صحيح.");
+                return;
+            }
+
+            const currentDomain = window.location.origin;
+            let proxyUrl;
+            let targetUrl;
+            
+            if (streamType === 'ts') {
+                targetUrl = document.getElementById('tsUrl').value;
+                if (!targetUrl.trim()) {
+                    alert("يرجى إدخال رابط TS");
+                    return;
+                }
+            } else {
+                targetUrl = "http://188.241.219.157/ulke.bordo1453.befhjjjj/Orhantelegrammmm30conextionefbn/274122?token=ShJdY2ZmQQNHCmMZCDZXUh9GSHAWGFMD.ZDsGQVN.WGBFNX013GR9YV1QbGBp0QE9SWmpcXlQXXlUHWlcbRxFACmcDY1tXEVkbVAoAAQJUFxUbRFldAxdeUAdaVAFcUwcHAhwWQlpXQQMLTFhUG0FQQU1VQl4HWTsFVBQLVABGCVxEXFgeEVwNZgFcWVlZBxcDGwESHERcFxETWAxCCQgfEFNZQEBSRwYbX1dBVFtPF1pWRV5EFExGWxMmJxVJRlZKRVVaQVpcDRtfG0BLFU8XUEpvQlUVQRYEUA8HRUdeEQITHBZfUks8WgpXWl1UF1xWV0MSCkQERk0TDw1ZDBBcQG5AXVYRCQ1MCVVJ";
+            }
+
+            if (urlType === 'temporary') {
+                try {
+                    const response = await fetch('/generate-token', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            url: targetUrl,
+                            headers: headers,
+                            duration: duration
+                        })
+                    });
+
+                    if (!response.ok) throw new Error('Failed to generate token');
+
+                    const result = await response.json();
+                    proxyUrl = result.proxyUrl;
+                    
+                    if (addM3u8Extension && !proxyUrl.endsWith('.m3u8')) {
+                        proxyUrl += '.m3u8';
+                    }
+                    
+                    const expiryDate = new Date(result.expiresAt);
+                    document.getElementById('proxyUrlText').value = proxyUrl;
+                    document.getElementById('proxyUrlResult').innerHTML = `
+                        <strong>تم إنشاء رابط مؤقت:</strong><br>
+                        <input type="text" id="proxyUrlText" value="${proxyUrl}" readonly style="width: 100%; margin: 10px 0;">
+                        <div style="background: #fff3cd; padding: 10px; border-radius: 4px; margin: 10px 0; font-size: 12px;">
+                            مدة الصلاحية: ${duration} ساعة | ينتهي: ${expiryDate.toLocaleString('ar-EG')}
+                        </div>
+                        <button onclick="copyProxyUrl()">نسخ</button>
+                        <button onclick="clearResult()">مسح</button>
+                    `;
+                        
+                } catch (error) {
+                    alert("فشل في إنشاء الرابط: " + error.message);
+                    return;
+                }
+            } else {
+                if (streamType === 'ts') {
+                    proxyUrl = `${currentDomain}/ts-proxy?url=${encodeURIComponent(targetUrl)}&headers=${encodeURIComponent(JSON.stringify(headers))}`;
+                } else {
+                    proxyUrl = `${currentDomain}/m3u8-proxy?url=${encodeURIComponent(targetUrl)}&headers=${encodeURIComponent(JSON.stringify(headers))}`;
+                }
+                
+                if (addM3u8Extension && !proxyUrl.endsWith('.m3u8')) {
+                    proxyUrl += '.m3u8';
+                }
+                
+                document.getElementById('proxyUrlText').value = proxyUrl;
+                document.getElementById('proxyUrlResult').innerHTML = `
+                    <strong>تم إنشاء رابط دائم:</strong><br>
+                    <input type="text" id="proxyUrlText" value="${proxyUrl}" readonly style="width: 100%; margin: 10px 0;">
+                    <div style="background: #d4edda; padding: 10px; border-radius: 4px; margin: 10px 0; font-size: 12px;">
+                        هذا الرابط دائم ولا ينتهي
+                    </div>
+                    <button onclick="copyProxyUrl()">نسخ</button>
+                    <button onclick="clearResult()">مسح</button>
+                `;
+            }
+            
+            document.getElementById('proxyUrlResult').style.display = 'block';
+            console.log("Generated Proxy URL: " + proxyUrl);
+        }
+
+        function copyProxyUrl() {
+            const proxyUrlText = document.getElementById('proxyUrlText');
+            if (proxyUrlText) {
+                proxyUrlText.select();
+                document.execCommand('copy');
+                alert("تم نسخ الرابط!");
+            }
+        }
+
+        function clearResult() {
+            document.getElementById('proxyUrlResult').style.display = 'none';
+            document.getElementById('proxyUrlText').value = '';
+        }
+    </script>
+</body>
+</html>
